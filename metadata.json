@@ -1,0 +1,6 @@
+{
+  "name": "Easy Payment SMS Gateway",
+  "description": "SaaS Payment Gateway SMS listener that extracts transaction details and securely syncs them to the backend API.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
