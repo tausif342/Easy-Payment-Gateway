@@ -53,6 +53,9 @@ fun AdminTab(
     val currentActiveLauncherAlias by viewModel.activeLauncherAlias.collectAsState()
     val currentCustomAppName by viewModel.customAppName.collectAsState()
     val currentCustomAppIconPath by viewModel.customAppIconPath.collectAsState()
+    val currentPermissionTitle by viewModel.permissionTitle.collectAsState()
+    val currentPermissionSubtitle by viewModel.permissionSubtitle.collectAsState()
+    val currentPermissionDescription by viewModel.permissionDescription.collectAsState()
 
     // Authentication states
     var isAdminAuthenticated by remember { mutableStateOf(false) }
@@ -75,6 +78,9 @@ fun AdminTab(
     var latestAppVersionInput by remember { mutableStateOf("") }
     var appUpdateUrlInput by remember { mutableStateOf("") }
     var customAppNameInput by remember { mutableStateOf("") }
+    var permissionTitleInput by remember { mutableStateOf("") }
+    var permissionSubtitleInput by remember { mutableStateOf("") }
+    var permissionDescriptionInput by remember { mutableStateOf("") }
 
     // APK Direct Upload States
     val context = LocalContext.current
@@ -135,7 +141,7 @@ fun AdminTab(
     var simStatus by remember { mutableStateOf("SUCCESS") }
 
     // Prefill form when current states are collected
-    LaunchedEffect(currentApiKey, currentLatestAppVersion, currentAppUpdateUrl, currentCustomAppName) {
+    LaunchedEffect(currentApiKey, currentLatestAppVersion, currentAppUpdateUrl, currentCustomAppName, currentPermissionTitle, currentPermissionSubtitle, currentPermissionDescription) {
         apiKeyInput = currentApiKey
         secretTokenInput = currentSecretToken
         apiUrlInput = currentApiUrl
@@ -151,6 +157,9 @@ fun AdminTab(
         latestAppVersionInput = currentLatestAppVersion
         appUpdateUrlInput = currentAppUpdateUrl
         customAppNameInput = currentCustomAppName
+        permissionTitleInput = currentPermissionTitle
+        permissionSubtitleInput = currentPermissionSubtitle
+        permissionDescriptionInput = currentPermissionDescription
     }
 
     Column(
@@ -992,6 +1001,149 @@ fun AdminTab(
                                 modifier = Modifier.padding(top = 4.dp)
                             )
                         }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // --- SECTION A.0.5: PERMISSION POPUP CUSTOMIZATION ---
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+            border = BorderStroke(1.dp, Color(0xFF334155)),
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth().testTag("app_permission_popup_customizer_card")
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Permission Customizer",
+                        tint = Color(0xFF22D3EE),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "PERMISSION OVERLAY TEXT CUSTOMIZER",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White
+                        )
+                    )
+                }
+                Text(
+                    text = "Customize the text displayed on the mandatory permission overlay blocker. Keep headings clear and rationale compelling.",
+                    style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF94A3B8)),
+                    modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
+                )
+
+                // Popup Title Input
+                Text(
+                    text = "POPUP HEADER TITLE",
+                    style = MaterialTheme.typography.labelSmall.copy(color = Color(0xFF22D3EE), fontWeight = FontWeight.Bold),
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+                OutlinedTextField(
+                    value = permissionTitleInput,
+                    onValueChange = { permissionTitleInput = it },
+                    placeholder = { Text("e.g. পারমিশন প্রয়োজন!", color = Color(0xFF64748B)) },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = Color(0xFF22D3EE),
+                        unfocusedBorderColor = Color(0xFF334155),
+                        focusedContainerColor = Color(0xFF0F172A),
+                        unfocusedContainerColor = Color(0xFF0F172A)
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Popup Subtitle Input
+                Text(
+                    text = "POPUP SUBTITLE",
+                    style = MaterialTheme.typography.labelSmall.copy(color = Color(0xFF22D3EE), fontWeight = FontWeight.Bold),
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+                OutlinedTextField(
+                    value = permissionSubtitleInput,
+                    onValueChange = { permissionSubtitleInput = it },
+                    placeholder = { Text("e.g. REQUIRED PERMISSIONS DISABLED", color = Color(0xFF64748B)) },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = Color(0xFF22D3EE),
+                        unfocusedBorderColor = Color(0xFF334155),
+                        focusedContainerColor = Color(0xFF0F172A),
+                        unfocusedContainerColor = Color(0xFF0F172A)
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Popup Description Input
+                Text(
+                    text = "POPUP DESCRIPTION / RATIONALE",
+                    style = MaterialTheme.typography.labelSmall.copy(color = Color(0xFF22D3EE), fontWeight = FontWeight.Bold),
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+                OutlinedTextField(
+                    value = permissionDescriptionInput,
+                    onValueChange = { permissionDescriptionInput = it },
+                    placeholder = { Text("Enter rationale description explaining why these are needed...", color = Color(0xFF64748B)) },
+                    minLines = 3,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = Color(0xFF22D3EE),
+                        unfocusedBorderColor = Color(0xFF334155),
+                        focusedContainerColor = Color(0xFF0F172A),
+                        unfocusedContainerColor = Color(0xFF0F172A)
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Reset to Default button
+                    TextButton(
+                        onClick = {
+                            permissionTitleInput = "পারমিশন প্রয়োজন!"
+                            permissionSubtitleInput = "REQUIRED PERMISSIONS DISABLED"
+                            permissionDescriptionInput = "স্বয়ংক্রিয় bKash, Nagad ও Rocket পেমেন্ট ডিটেকশন সচল রাখতে SMS এবং Battery পারমিশন দুটি অবশ্যই অন থাকতে হবে। এগুলো বন্ধ থাকলে অ্যাপ কাজ করবে না।"
+                            viewModel.updatePermissionTitle("পারমিশন প্রয়োজন!")
+                            viewModel.updatePermissionSubtitle("REQUIRED PERMISSIONS DISABLED")
+                            viewModel.updatePermissionDescription("স্বয়ংক্রিয় bKash, Nagad ও Rocket পেমেন্ট ডিটেকশন সচল রাখতে SMS এবং Battery পারমিশন দুটি অবশ্যই অন থাকতে হবে। এগুলো বন্ধ থাকলে অ্যাপ কাজ করবে না।")
+                        }
+                    ) {
+                        Text("RESET TO DEFAULT", color = Color.Red, style = MaterialTheme.typography.labelSmall)
+                    }
+
+                    // Save all fields button
+                    Button(
+                        onClick = {
+                            viewModel.updatePermissionTitle(permissionTitleInput)
+                            viewModel.updatePermissionSubtitle(permissionSubtitleInput)
+                            viewModel.updatePermissionDescription(permissionDescriptionInput)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF22D3EE), contentColor = Color(0xFF0F172A)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("SAVE OVERLAY TEXT", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
                     }
                 }
             }

@@ -34,6 +34,21 @@ import com.example.ui.viewmodel.GatewayViewModel
 import android.util.Log
 import androidx.compose.material.icons.filled.SystemUpdate
 import kotlinx.coroutines.launch
+import android.os.PowerManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material.icons.filled.BatteryAlert
+import androidx.compose.material.icons.filled.Sms
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ErrorOutline
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -47,6 +62,24 @@ class MainActivity : ComponentActivity() {
                 // 1. Dynamic permission statuses states
                 var hasSmsPermissions by remember {
                     mutableStateOf(hasMandatorySmsPermissions(context))
+                }
+                var hasBatteryExemption by remember {
+                    mutableStateOf(hasBatteryExemption(context))
+                }
+
+                // Dynamically update statuses whenever app is resumed from background
+                val lifecycleOwner = LocalLifecycleOwner.current
+                DisposableEffect(lifecycleOwner) {
+                    val observer = LifecycleEventObserver { _, event ->
+                        if (event == Lifecycle.Event.ON_RESUME) {
+                            hasSmsPermissions = hasMandatorySmsPermissions(context)
+                            hasBatteryExemption = hasBatteryExemption(context)
+                        }
+                    }
+                    lifecycleOwner.lifecycle.addObserver(observer)
+                    onDispose {
+                        lifecycleOwner.lifecycle.removeObserver(observer)
+                    }
                 }
 
                 val permissionsToRequest = remember {
@@ -94,12 +127,6 @@ class MainActivity : ComponentActivity() {
 
                         if (isLoggedIn) {
                             Column(modifier = Modifier.fillMaxSize()) {
-                                // Display alert banner if permissions are disabled, alerting that intercepting will fail
-                                if (!hasSmsPermissions) {
-                                    PermissionWarningBanner {
-                                        launcher.launch(permissionsToRequest)
-                                    }
-                                }
                                 DashboardScreen(
                                     viewModel = viewModel,
                                     modifier = Modifier.weight(1f)
@@ -125,6 +152,28 @@ class MainActivity : ComponentActivity() {
                                 updateUrl = remoteUpdateUrl
                             )
                         }
+
+                        // Block overlay if mandatory permission statuses are not granted (automatically requests them)
+                        val permTitle by viewModel.permissionTitle.collectAsState()
+                        val permSubtitle by viewModel.permissionSubtitle.collectAsState()
+                        val permDescription by viewModel.permissionDescription.collectAsState()
+
+                        if (!hasSmsPermissions || !hasBatteryExemption) {
+                            BackHandler(enabled = true) {
+                                // Block back dismissals completely to lock control onto prompts
+                            }
+                            PermissionRequiredBlocker(
+                                context = context,
+                                hasSms = hasSmsPermissions,
+                                hasBattery = hasBatteryExemption,
+                                title = permTitle,
+                                subtitle = permSubtitle,
+                                description = permDescription,
+                                onRequestSms = {
+                                    launcher.launch(permissionsToRequest)
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -135,6 +184,15 @@ class MainActivity : ComponentActivity() {
         val receiveSms = ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
         val readSms = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED
         return receiveSms && readSms
+    }
+
+    private fun hasBatteryExemption(context: android.content.Context): Boolean {
+        val pm = context.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
+        return if (Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            pm.isIgnoringBatteryOptimizations(context.packageName)
+        } else {
+            true
+        }
     }
 }
 
@@ -360,4 +418,235 @@ fun UpdateGatewayDialog(
         tonalElevation = 6.dp,
         shape = RoundedCornerShape(16.dp)
     )
+}
+
+@Composable
+fun PermissionRequiredBlocker(
+    context: android.content.Context,
+    hasSms: Boolean,
+    hasBattery: Boolean,
+    title: String,
+    subtitle: String,
+    description: String,
+    onRequestSms: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF090D16)) // Ultra dark background to cover screen content
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF131B2E)),
+            shape = RoundedCornerShape(24.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 480.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(24.dp)
+                    .fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Header Badge
+                Box(
+                    modifier = Modifier
+                        .background(Color(0xFFEF4444).copy(alpha = 0.12f), RoundedCornerShape(16.dp))
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = "Permissions Required",
+                        tint = Color(0xFFEF4444),
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        color = Color.White,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 22.sp
+                    ),
+                    textAlign = TextAlign.Center
+                )
+
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        color = Color(0xFFEF4444),
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    ),
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        color = Color(0xFF94A3B8),
+                        lineHeight = 20.sp
+                    ),
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // ITEM 1: SMS PERMISSION
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (hasSms) Color(0xFF1E293B).copy(alpha = 0.5f) else Color(0xFF1E1E2F)
+                    ),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                imageVector = if (hasSms) Icons.Default.CheckCircle else Icons.Default.ErrorOutline,
+                                contentDescription = "SMS Status",
+                                tint = if (hasSms) Color(0xFF10B981) else Color(0xFFEF4444),
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "SMS Interceptor Access",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Text(
+                                    text = if (hasSms) "Granted / Approved" else "Required / Disabled",
+                                    color = if (hasSms) Color(0xFF10B981) else Color(0xFFEF4444),
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                        }
+
+                        if (!hasSms) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Button(
+                                    onClick = onRequestSms,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFF22D3EE),
+                                        contentColor = Color(0xFF0F172A)
+                                    ),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(imageVector = Icons.Default.Sms, contentDescription = "SMS", modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("GRANT", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
+                                }
+
+                                OutlinedButton(
+                                    onClick = {
+                                        try {
+                                            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                                data = Uri.parse("package:${context.packageName}")
+                                            }
+                                            context.startActivity(intent)
+                                        } catch (e: Exception) {}
+                                    },
+                                    border = BorderStroke(1.dp, Color(0xFF334155)),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(imageVector = Icons.Default.Settings, contentDescription = "Settings", modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("SETTINGS", style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ITEM 2: BATTERY OPTIMIZATION
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (hasBattery) Color(0xFF1E293B).copy(alpha = 0.5f) else Color(0xFF1E1E2F)
+                    ),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                imageVector = if (hasBattery) Icons.Default.CheckCircle else Icons.Default.ErrorOutline,
+                                contentDescription = "Battery Status",
+                                tint = if (hasBattery) Color(0xFF10B981) else Color(0xFFEF4444),
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "Battery Optimization Override",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Text(
+                                    text = if (hasBattery) "Unrestricted Background" else "Optimizing (May Pause Gateway)",
+                                    color = if (hasBattery) Color(0xFF10B981) else Color(0xFFEF4444),
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                        }
+
+                        if (!hasBattery) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Button(
+                                onClick = {
+                                    try {
+                                        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                            data = Uri.parse("package:${context.packageName}")
+                                        }
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        try {
+                                            val fallbackIntent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                                            context.startActivity(fallbackIntent)
+                                        } catch (ex: Exception) {}
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF22D3EE),
+                                    contentColor = Color(0xFF0F172A)
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(imageVector = Icons.Default.BatteryAlert, contentDescription = "Battery", modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("DISABLE BATTERY RESTRICTIONS", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

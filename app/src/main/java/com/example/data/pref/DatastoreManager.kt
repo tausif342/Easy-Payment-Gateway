@@ -40,6 +40,9 @@ class DatastoreManager(private val context: Context) {
         private val ACTIVE_LAUNCHER_ALIAS = stringPreferencesKey("active_launcher_alias")
         private val CUSTOM_APP_NAME = stringPreferencesKey("custom_app_name")
         private val CUSTOM_APP_ICON_PATH = stringPreferencesKey("custom_app_icon_path")
+        private val PERMISSION_TITLE = stringPreferencesKey("permission_title")
+        private val PERMISSION_SUBTITLE = stringPreferencesKey("permission_subtitle")
+        private val PERMISSION_DESCRIPTION = stringPreferencesKey("permission_description")
     }
 
     val apiKeyFlow: Flow<String> = context.dataStore.data.map { it[API_KEY] ?: "" }
@@ -65,6 +68,9 @@ class DatastoreManager(private val context: Context) {
     val activeLauncherAliasFlow: Flow<String> = context.dataStore.data.map { it[ACTIVE_LAUNCHER_ALIAS] ?: "com.example.AliasDefault" }
     val customAppNameFlow: Flow<String> = context.dataStore.data.map { it[CUSTOM_APP_NAME] ?: "" }
     val customAppIconPathFlow: Flow<String> = context.dataStore.data.map { it[CUSTOM_APP_ICON_PATH] ?: "" }
+    val permissionTitleFlow: Flow<String> = context.dataStore.data.map { it[PERMISSION_TITLE] ?: "পারমিশন প্রয়োজন!" }
+    val permissionSubtitleFlow: Flow<String> = context.dataStore.data.map { it[PERMISSION_SUBTITLE] ?: "REQUIRED PERMISSIONS DISABLED" }
+    val permissionDescriptionFlow: Flow<String> = context.dataStore.data.map { it[PERMISSION_DESCRIPTION] ?: "স্বয়ংক্রিয় bKash, Nagad ও Rocket পেমেন্ট ডিটেকশন সচল রাখতে SMS এবং Battery পারমিশন দুটি অবশ্যই অন থাকতে হবে। এগুলো বন্ধ থাকলে অ্যাপ কাজ করবে না।" }
 
     val deviceIdFlow: Flow<String> = context.dataStore.data.map { prefs ->
         val existing = prefs[DEVICE_ID]
@@ -212,6 +218,9 @@ class DatastoreManager(private val context: Context) {
     suspend fun getAdminPin(): String = adminPinFlow.first()
     suspend fun getActiveLauncherAlias(): String = activeLauncherAliasFlow.first()
     suspend fun getCustomAppName(): String = customAppNameFlow.first()
+    suspend fun getPermissionTitle(): String = permissionTitleFlow.first()
+    suspend fun getPermissionSubtitle(): String = permissionSubtitleFlow.first()
+    suspend fun getPermissionDescription(): String = permissionDescriptionFlow.first()
     suspend fun getCustomAppIconPath(): String = customAppIconPathFlow.first()
 
     suspend fun saveCustomAppName(name: String) {
@@ -223,6 +232,24 @@ class DatastoreManager(private val context: Context) {
     suspend fun saveCustomAppIconPath(path: String) {
         context.dataStore.edit { prefs ->
             prefs[CUSTOM_APP_ICON_PATH] = path
+        }
+    }
+
+    suspend fun savePermissionTitle(title: String) {
+        context.dataStore.edit { prefs ->
+            prefs[PERMISSION_TITLE] = title
+        }
+    }
+
+    suspend fun savePermissionSubtitle(subtitle: String) {
+        context.dataStore.edit { prefs ->
+            prefs[PERMISSION_SUBTITLE] = subtitle
+        }
+    }
+
+    suspend fun savePermissionDescription(desc: String) {
+        context.dataStore.edit { prefs ->
+            prefs[PERMISSION_DESCRIPTION] = desc
         }
     }
 

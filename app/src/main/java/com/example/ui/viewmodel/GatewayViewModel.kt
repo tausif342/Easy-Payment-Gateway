@@ -97,6 +97,9 @@ class GatewayViewModel(application: Application) : AndroidViewModel(application)
     val activeLauncherAlias: StateFlow<String> = datastore.activeLauncherAliasFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "com.example.AliasDefault")
     val customAppName: StateFlow<String> = datastore.customAppNameFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
     val customAppIconPath: StateFlow<String> = datastore.customAppIconPathFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+    val permissionTitle: StateFlow<String> = datastore.permissionTitleFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "পারমিশন প্রয়োজন!")
+    val permissionSubtitle: StateFlow<String> = datastore.permissionSubtitleFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "REQUIRED PERMISSIONS DISABLED")
+    val permissionDescription: StateFlow<String> = datastore.permissionDescriptionFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "স্বয়ংক্রিয় bKash, Nagad ও Rocket পেমেন্ট ডিটেকশন সচল রাখতে SMS এবং Battery পারমিশন দুটি অবশ্যই অন থাকতে হবে। এগুলো বন্ধ থাকলে অ্যাপ কাজ করবে না।")
 
     private val _isUploadingApk = MutableStateFlow(false)
     val isUploadingApk: StateFlow<Boolean> = _isUploadingApk.asStateFlow()
@@ -984,6 +987,39 @@ class GatewayViewModel(application: Application) : AndroidViewModel(application)
                 _uiState.value = UiState.Success("Custom App Icon updated successfully!")
             } catch (e: Exception) {
                 _uiState.value = UiState.Error("Failed to save Custom App Icon: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    fun updatePermissionTitle(title: String) {
+        viewModelScope.launch {
+            try {
+                datastore.savePermissionTitle(title)
+                _uiState.value = UiState.Success("Custom Permission Title saved!")
+            } catch (e: Exception) {
+                _uiState.value = UiState.Error("Failed to save Title: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    fun updatePermissionSubtitle(subtitle: String) {
+        viewModelScope.launch {
+            try {
+                datastore.savePermissionSubtitle(subtitle)
+                _uiState.value = UiState.Success("Custom Permission Subtitle saved!")
+            } catch (e: Exception) {
+                _uiState.value = UiState.Error("Failed to save Subtitle: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    fun updatePermissionDescription(desc: String) {
+        viewModelScope.launch {
+            try {
+                datastore.savePermissionDescription(desc)
+                _uiState.value = UiState.Success("Custom Permission Description saved!")
+            } catch (e: Exception) {
+                _uiState.value = UiState.Error("Failed to save Description: ${e.localizedMessage}")
             }
         }
     }
