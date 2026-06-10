@@ -122,10 +122,11 @@ class SyncWorkManager(
         val apiKey = datastoreManager.getApiKey()
         val secretToken = datastoreManager.getSecretToken()
 
-        if (datastoreManager.isLoggedInFlow.first() &&
-            !apiUrl.uppercase().contains("DEMO") &&
-            !apiUrl.lowercase().contains("EASYPAYCENTER.COM") &&
-            !apiUrl.lowercase().contains("easypaycenter.com")) {
+        val isSandbox = apiUrl.equals("DEMO", ignoreCase = true) || 
+                        apiKey == "EP_MCH_KEY_928374" || 
+                        apiKey.startsWith("SANDBOX_")
+
+        if (datastoreManager.isLoggedInFlow.first() && !isSandbox) {
             try {
                 val lastCapturedSms = datastoreManager.getLastSmsTime()
                 val lastFinishedSync = datastoreManager.getLastSyncTime()
@@ -268,8 +269,12 @@ class SyncWorkManager(
 
         for (txn in pendingTxns) {
             try {
-                // If the user uses a fake url or "DEMO", we do rapid simulated syncs to demonstrate SaaS payment verification flow 
-                if (apiUrl.uppercase().contains("DEMO") || apiUrl.lowercase().contains("easypaycenter.com")) {
+                // If it is sandbox mode, do simulated success 
+                val isSandboxSync = apiUrl.equals("DEMO", ignoreCase = true) || 
+                                    apiKey == "EP_MCH_KEY_928374" || 
+                                    apiKey.startsWith("SANDBOX_")
+
+                if (isSandboxSync) {
                     // Simulate processing delay
                     kotlinx.coroutines.delay(1000)
                     

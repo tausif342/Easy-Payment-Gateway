@@ -23,6 +23,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
 import com.example.ui.viewmodel.GatewayViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -31,6 +33,13 @@ fun LoginScreen(
     viewModel: GatewayViewModel,
     modifier: Modifier = Modifier
 ) {
+    val savedApiKey by viewModel.apiKey.collectAsState()
+    val savedSecretToken by viewModel.secretToken.collectAsState()
+    val savedApiUrl by viewModel.apiUrl.collectAsState()
+
+    val customName by viewModel.customAppName.collectAsState()
+    val customIconPath by viewModel.customAppIconPath.collectAsState()
+
     var apiKeyInput by remember { mutableStateFlowOf("") }
     var secretTokenInput by remember { mutableStateFlowOf("") }
     var apiUrlInput by remember { mutableStateFlowOf("https://api.easypaycenter.com/v1") }
@@ -39,10 +48,17 @@ fun LoginScreen(
     val uiState by viewModel.uiState.collectAsState()
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    // Set initial custom values for testing convenience
-    LaunchedEffect(Unit) {
-        apiKeyInput = "EP_MCH_KEY_928374"
-        secretTokenInput = "TOK_SEC_928437AJD83"
+    // Set initial default values if they are saved in preferences, otherwise keep clean
+    LaunchedEffect(savedApiKey, savedSecretToken, savedApiUrl) {
+        if (savedApiKey.isNotEmpty()) {
+            apiKeyInput = savedApiKey
+        }
+        if (savedSecretToken.isNotEmpty()) {
+            secretTokenInput = savedSecretToken
+        }
+        if (savedApiUrl.isNotEmpty()) {
+            apiUrlInput = savedApiUrl
+        }
     }
 
     Box(
@@ -67,6 +83,18 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            val brandBitmap = remember(customIconPath) {
+                if (customIconPath.isNotEmpty()) {
+                    try {
+                        android.graphics.BitmapFactory.decodeFile(customIconPath)?.asImageBitmap()
+                    } catch (e: Exception) {
+                        null
+                    }
+                } else {
+                    null
+                }
+            }
+
             // Header / Brand branding icon pairing
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
@@ -78,19 +106,28 @@ fun LoginScreen(
                     modifier = Modifier
                         .padding(20.dp)
                         .background(Color(0xFF0F172A), RoundedCornerShape(16.dp))
-                        .padding(16.dp)
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Security,
-                        contentDescription = "Shield logo",
-                        tint = Color(0xFF22D3EE), // Cyan accent
-                        modifier = Modifier.size(48.dp)
-                    )
+                    if (brandBitmap != null) {
+                        Image(
+                            bitmap = brandBitmap,
+                            contentDescription = "Custom Brand Logo",
+                            modifier = Modifier.size(56.dp)
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Security,
+                            contentDescription = "Shield logo",
+                            tint = Color(0xFF22D3EE), // Cyan accent
+                            modifier = Modifier.size(48.dp)
+                        )
+                    }
                 }
             }
 
             Text(
-                text = "Easy Payment SMS Gateway",
+                text = if (customName.isNotEmpty()) customName else "Easy Payment SMS Gateway",
                 style = MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.ExtraBold,
                     color = Color.White,
@@ -341,6 +378,29 @@ fun LoginScreen(
                         Text(
                             text = "Or Quick Boot into 'DEMO' Sandbox Mode",
                             style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp
+                            )
+                        )
+                    }
+
+                    TextButton(
+                        onClick = {
+                            apiKeyInput = "EP_MCH_KEY_928374"
+                            secretTokenInput = "TOK_SEC_928437AJD83"
+                            apiUrlInput = "https://api.easypaycenter.com/v1"
+                        },
+                        colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFA5F3FC))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Demo Keys Icon",
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Fill Sandbox Test Keys Preset",
+                            style = MaterialTheme.typography.bodySmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 0.5.sp
                             )

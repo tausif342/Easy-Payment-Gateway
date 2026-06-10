@@ -36,6 +36,10 @@ class DatastoreManager(private val context: Context) {
         private val MARKETING_KEYWORDS = stringPreferencesKey("marketing_keywords")
         private val LATEST_APP_VERSION = stringPreferencesKey("latest_app_version")
         private val APP_UPDATE_URL = stringPreferencesKey("app_update_url")
+        private val ADMIN_PIN = stringPreferencesKey("admin_pin")
+        private val ACTIVE_LAUNCHER_ALIAS = stringPreferencesKey("active_launcher_alias")
+        private val CUSTOM_APP_NAME = stringPreferencesKey("custom_app_name")
+        private val CUSTOM_APP_ICON_PATH = stringPreferencesKey("custom_app_icon_path")
     }
 
     val apiKeyFlow: Flow<String> = context.dataStore.data.map { it[API_KEY] ?: "" }
@@ -57,6 +61,10 @@ class DatastoreManager(private val context: Context) {
     val marketingKeywordsFlow: Flow<String> = context.dataStore.data.map { it[MARKETING_KEYWORDS] ?: "" }
     val latestAppVersionFlow: Flow<String> = context.dataStore.data.map { it[LATEST_APP_VERSION] ?: "1.0.0" }
     val appUpdateUrlFlow: Flow<String> = context.dataStore.data.map { it[APP_UPDATE_URL] ?: "" }
+    val adminPinFlow: Flow<String> = context.dataStore.data.map { it[ADMIN_PIN] ?: "2580" }
+    val activeLauncherAliasFlow: Flow<String> = context.dataStore.data.map { it[ACTIVE_LAUNCHER_ALIAS] ?: "com.example.AliasDefault" }
+    val customAppNameFlow: Flow<String> = context.dataStore.data.map { it[CUSTOM_APP_NAME] ?: "" }
+    val customAppIconPathFlow: Flow<String> = context.dataStore.data.map { it[CUSTOM_APP_ICON_PATH] ?: "" }
 
     val deviceIdFlow: Flow<String> = context.dataStore.data.map { prefs ->
         val existing = prefs[DEVICE_ID]
@@ -123,6 +131,13 @@ class DatastoreManager(private val context: Context) {
             } else if (status == "REVOKED" || status == "LIMIT_EXCEEDED" || status == "UNAUTHORIZED") {
                 prefs[IS_APPROVED] = false
             }
+        }
+    }
+
+    suspend fun saveCustomDeviceDetails(id: String, name: String) {
+        context.dataStore.edit { prefs ->
+            prefs[DEVICE_ID] = id
+            prefs[DEVICE_NAME] = name
         }
     }
 
@@ -194,6 +209,34 @@ class DatastoreManager(private val context: Context) {
     suspend fun getMarketingKeywords(): String = marketingKeywordsFlow.first()
     suspend fun getLatestAppVersion(): String = latestAppVersionFlow.first()
     suspend fun getAppUpdateUrl(): String = appUpdateUrlFlow.first()
+    suspend fun getAdminPin(): String = adminPinFlow.first()
+    suspend fun getActiveLauncherAlias(): String = activeLauncherAliasFlow.first()
+    suspend fun getCustomAppName(): String = customAppNameFlow.first()
+    suspend fun getCustomAppIconPath(): String = customAppIconPathFlow.first()
+
+    suspend fun saveCustomAppName(name: String) {
+        context.dataStore.edit { prefs ->
+            prefs[CUSTOM_APP_NAME] = name
+        }
+    }
+
+    suspend fun saveCustomAppIconPath(path: String) {
+        context.dataStore.edit { prefs ->
+            prefs[CUSTOM_APP_ICON_PATH] = path
+        }
+    }
+
+    suspend fun saveActiveLauncherAlias(alias: String) {
+        context.dataStore.edit { prefs ->
+            prefs[ACTIVE_LAUNCHER_ALIAS] = alias
+        }
+    }
+
+    suspend fun saveAdminPin(pin: String) {
+        context.dataStore.edit { prefs ->
+            prefs[ADMIN_PIN] = pin
+        }
+    }
 
     suspend fun saveRemoteConfig(
         senders: String,

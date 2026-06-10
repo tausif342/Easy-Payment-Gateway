@@ -1,0 +1,26 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Dark Background -->
+    <path
+        android:fillColor="#1E1B4B"
+        android:pathData="M0,0h108v108h-108z" />
+    <!-- Gradient Inner Grid/Ring -->
+    <path
+        android:fillColor="#312E81"
+        android:pathData="M54,54m-40,0a40,40 0,1 1,80 0a40,40 0,1 1,-80 0" />
+    <!-- Shield Outline -->
+    <path
+        android:fillColor="#818CF8"
+        android:pathData="M54,24c13.5,0 20,-4 20,-4s0,16 0,26c0,14 -11,21 -20,24c-9,-3 -20,-10 -20,-24c0,-10 0,-26 0,-26s6.5,4 20,4z" />
+    <!-- Shield Fill Innards -->
+    <path
+        android:fillColor="#3730A3"
+        android:pathData="M54,28c10.5,0 16,-3 16,-3s0,13 0,21c0,11 -9.5,17 -16,19c-6.5,-2 -16,-8 -16,-19c0,-8 0,-21 0,-21s5.5,3 16,3z" />
+    <!-- Checkmark inside Shield -->
+    <path
+        android:fillColor="#34D399"
+        android:pathData="M50,54.5l-6.5,-6.5l-2.5,2.5l9,9l16,-16l-2.5,-2.5z" />
+</vector>

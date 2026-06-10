@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import com.example.ui.screens.tabs.*
 import com.example.data.model.Project
 import com.example.data.model.PaymentAccount
 import androidx.compose.animation.*
@@ -49,6 +50,9 @@ import com.example.service.SyncWorkManager
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -86,10 +90,17 @@ fun DashboardScreen(
 
     val uiState by viewModel.uiState.collectAsState()
 
+    val customName by viewModel.customAppName.collectAsState()
+    val customIconPath by viewModel.customAppIconPath.collectAsState()
+
     val geminiParseResult by viewModel.geminiParseResult.collectAsState()
     val geminiParseLoading by viewModel.geminiParseLoading.collectAsState()
 
-    // Screen tab selection (0 = Transactions, 1 = Sync Logs, 2 = SMS Emulator Console)
+    val withdrawRequests by viewModel.withdrawRequests.collectAsState()
+    val supportTickets by viewModel.supportTickets.collectAsState()
+    val notifications by viewModel.notifications.collectAsState()
+
+    // Screen tab selection (0 = Overview, 1 = Payments, 2 = Portal, 3 = Devices, 4 = Support & Profile)
     var activeTab by remember { mutableStateOf(0) }
     var isShowingLogViewer by remember { mutableStateOf(false) }
     
@@ -98,6 +109,34 @@ fun DashboardScreen(
     var simulatorTargetService by remember { mutableStateOf("bKash") }
     var customSmsSender by remember { mutableStateOf("bKash") }
     var customSmsBody by remember { mutableStateOf("You have received Tk 2,500.00 from 01711223344. Remaining Bal Tk 15,200.00. TrxID 8N34JG98DL at 02/06/2026 14:35. Ref: directRef") }
+
+    // --- NEW MERCHANT LIVE CONSOLE STATES ---
+    var withdrawAmountText by remember { mutableStateOf("") }
+    var withdrawGateway by remember { mutableStateOf("BKASH") }
+    var withdrawAccountText by remember { mutableStateOf("") }
+
+    var ticketTitleText by remember { mutableStateOf("") }
+    var ticketCatText by remember { mutableStateOf("MFS Gateway Node") }
+    var ticketPriorityText by remember { mutableStateOf("MEDIUM") }
+    var ticketDescText by remember { mutableStateOf("") }
+
+    var addWebNameText by remember { mutableStateOf("") }
+    var addWebUrlText by remember { mutableStateOf("") }
+    var addWebKeyText by remember { mutableStateOf("") }
+
+    var addWalletNameText by remember { mutableStateOf("") }
+    var addWalletNumberText by remember { mutableStateOf("") }
+    var addWalletProviderText by remember { mutableStateOf("bKash") }
+    var addWalletSimSlotSelected by remember { mutableStateOf(0) }
+    var addWalletProjectSelected by remember { mutableStateOf("") }
+
+    var txSearchQueryText by remember { mutableStateOf("") }
+    var txSearchFilterProvider by remember { mutableStateOf("ALL") }
+
+    var faqExpanded0 by remember { mutableStateOf(false) }
+    var faqExpanded1 by remember { mutableStateOf(false) }
+    var faqExpanded2 by remember { mutableStateOf(false) }
+    var isApiKeyObscured by remember { mutableStateOf(true) }
 
     // Auto-clear notification messages after delay
     LaunchedEffect(uiState) {
@@ -130,40 +169,69 @@ fun DashboardScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
+                    val brandLogoBmp = remember(customIconPath) {
+                        if (customIconPath.isNotEmpty()) {
+                            try {
+                                android.graphics.BitmapFactory.decodeFile(customIconPath)?.asImageBitmap()
+                            } catch (e: Exception) {
+                                null
+                            }
+                        } else {
+                            null
+                        }
+                    }
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Column {
-                            Text(
-                                text = "EASY SMS GATEWAY",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = Color.White,
-                                    letterSpacing = 1.sp
-                                )
-                            )
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(top = 4.dp)
-                            ) {
-                                Box(
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Start,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            if (brandLogoBmp != null) {
+                                Image(
+                                    bitmap = brandLogoBmp,
+                                    contentDescription = "Dynamic Brand Icon",
                                     modifier = Modifier
-                                        .size(10.dp)
-                                        .background(
-                                            if (isGatewayActive) Color(0xFF10B981) else Color(0xFF64748B),
-                                            CircleShape
-                                        )
+                                        .size(38.dp)
+                                        .background(Color(0xFF0F172A), CircleShape)
+                                        .padding(2.dp)
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
+                            }
+                            Column {
                                 Text(
-                                    text = if (isGatewayActive) "ONLINE & LISTENING" else "SERVICE PAUSED",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (isGatewayActive) Color(0xFF34D399) else Color(0xFF94A3B8)
+                                    text = if (customName.isNotEmpty()) customName.uppercase() else "EASY SMS GATEWAY",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color.White,
+                                        letterSpacing = 1.sp
                                     )
                                 )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(10.dp)
+                                            .background(
+                                                if (isGatewayActive) Color(0xFF10B981) else Color(0xFF64748B),
+                                                CircleShape
+                                            )
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = if (isGatewayActive) "ONLINE & LISTENING" else "SERVICE PAUSED",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isGatewayActive) Color(0xFF34D399) else Color(0xFF94A3B8)
+                                        )
+                                    )
+                                }
                             }
                         }
 
@@ -498,9 +566,7 @@ fun DashboardScreen(
                             }
                         }
                     }
-                }
-
-                // ENTERPRISE TELEMETRY & SaaS INDICATION CARD
+                }                 // ENTERPRISE TELEMETRY & SaaS INDICATION CARD
                 item {
                     val localAppVersion = com.example.util.DeviceDiagnosticUtil.getAppVersion(context)
                     val remoteVersion by viewModel.latestAppVersion.collectAsState()
@@ -512,6 +578,11 @@ fun DashboardScreen(
                     val batteryLevel = remember { com.example.util.DeviceDiagnosticUtil.getBatteryLevel(context) }
                     val internetStatusStr = remember { com.example.util.DeviceDiagnosticUtil.getInternetStatus(context) }
                     val simProfiles = remember { com.example.util.DeviceDiagnosticUtil.getSimStatus(context) }
+
+                    val scope = rememberCoroutineScope()
+                    var dashboardUpdateTriggered by remember { mutableStateOf(false) }
+                    var dashboardUpdateProgress by remember { mutableStateOf(0f) }
+                    var dashboardUpdateError by remember { mutableStateOf<String?>(null) }
 
                     Card(
                         colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
@@ -569,28 +640,64 @@ fun DashboardScreen(
                                         }
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Text(
-                                            text = "A critical security update for Easy Payment Gateway is available. Download and verify the updated build immediately.",
+                                            text = "A critical stability patch has been deployed by the system administrator. Securely download and trigger package installation inside the client immediately.",
                                             style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFFFCA5A5), fontSize = 11.sp)
                                         )
                                         Spacer(modifier = Modifier.height(8.dp))
-                                        Button(
-                                            onClick = {
-                                                try {
-                                                    val webIntent = android.content.Intent(
-                                                        android.content.Intent.ACTION_VIEW,
-                                                        android.net.Uri.parse(remoteUpdateUrl)
-                                                    )
-                                                    context.startActivity(webIntent)
-                                                } catch (e: Exception) {
-                                                    // No browser found fallback
+                                        
+                                        if (dashboardUpdateTriggered) {
+                                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                val pct = (dashboardUpdateProgress * 100).toInt()
+                                                Row(
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    modifier = Modifier.fillMaxWidth()
+                                                ) {
+                                                    Text("Downloading APK update package...", color = Color(0xFFFCA5A5), style = MaterialTheme.typography.labelSmall)
+                                                    Text("$pct%", color = Color.White, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
                                                 }
-                                            },
-                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
-                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
-                                            shape = RoundedCornerShape(4.dp),
-                                            modifier = Modifier.height(28.dp)
-                                        ) {
-                                            Text("Install Update", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Black, color = Color.White))
+                                                LinearProgressIndicator(
+                                                    progress = { dashboardUpdateProgress },
+                                                    modifier = Modifier.fillMaxWidth().height(4.dp),
+                                                    color = Color.White,
+                                                    trackColor = Color(0xFF991B1B)
+                                                )
+                                            }
+                                        } else {
+                                            if (dashboardUpdateError != null) {
+                                                Text(
+                                                    text = "❌ Error: $dashboardUpdateError",
+                                                    color = Color.White,
+                                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                                    modifier = Modifier.padding(bottom = 8.dp)
+                                                )
+                                            }
+
+                                            Button(
+                                                onClick = {
+                                                    dashboardUpdateTriggered = true
+                                                    dashboardUpdateError = null
+                                                    scope.launch {
+                                                        com.example.util.AppUpdateUtil.downloadAndInstallApk(
+                                                            context = context,
+                                                            updateUrl = remoteUpdateUrl,
+                                                            version = remoteVersion,
+                                                            onProgress = { progress ->
+                                                                dashboardUpdateProgress = progress
+                                                            },
+                                                            onError = { errMsg ->
+                                                                dashboardUpdateError = errMsg
+                                                                dashboardUpdateTriggered = false
+                                                            }
+                                                        )
+                                                     }
+                                                },
+                                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
+                                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
+                                                shape = RoundedCornerShape(4.dp),
+                                                modifier = Modifier.height(28.dp)
+                                            ) {
+                                                Text("Download & Update", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Black, color = Color.White))
+                                            }
                                         }
                                     }
                                 }
@@ -1056,6 +1163,7 @@ fun DashboardScreen(
 
                 // 4. TAB NAVIGATION DECK (Lists UI switches)
                 item {
+                    val tabs = listOf("OVERVIEW", "PAYMENTS", "PORTAL", "CONSOLE", "SUPPORT & ME", "ADMIN PANEL")
                     ScrollableTabRow(
                         selectedTabIndex = activeTab,
                         containerColor = Color(0xFF1E293B),
@@ -1071,933 +1179,64 @@ fun DashboardScreen(
                             }
                         }
                     ) {
-                        Tab(
-                            selected = activeTab == 0,
-                            onClick = { activeTab = 0 },
-                            text = { Text("PAYMENTS", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)) }
-                        )
-                        Tab(
-                            selected = activeTab == 1,
-                            onClick = { activeTab = 1 },
-                            text = { Text("MAPPINGS", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)) }
-                        )
-                        Tab(
-                            selected = activeTab == 2,
-                            onClick = { activeTab = 2 },
-                            text = { Text("TELEMETRY", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)) }
-                        )
-                        Tab(
-                            selected = activeTab == 3,
-                            onClick = { activeTab = 3 },
-                            text = { Text("EMULATOR", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold, color = Color(0xFFFFB703))) }
-                        )
-                        Tab(
-                            selected = activeTab == 4,
-                            onClick = { activeTab = 4 },
-                            text = { Text("SETTINGS", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold, color = Color(0xFFE2E8F0))) }
-                        )
+                        tabs.forEachIndexed { idx, title ->
+                            Tab(
+                                selected = activeTab == idx,
+                                onClick = { activeTab = idx },
+                                text = { Text(title, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)) }
+                            )
+                        }
                     }
                 }
 
                 // TAB CONTENTS
                 when (activeTab) {
-                    0 -> { // TAB 0: INTERCEPTED PAYMENTS LOGS
+                    0 -> {
                         item {
-                            // NEW: SUMMARY DASHBOARD COMPONENT (Pending vs Synced progress)
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
-                                border = BorderStroke(1.dp, Color(0xFF334155)),
-                                shape = RoundedCornerShape(16.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 8.dp)
-                                    .testTag("summary_dashboard_card")
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Column(
-                                        modifier = Modifier.weight(1.3f),
-                                        verticalArrangement = Arrangement.Center
-                                    ) {
-                                        Text(
-                                            text = "SYNC QUALITY OVERVIEW",
-                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                color = Color(0xFF22D3EE),
-                                                fontWeight = FontWeight.ExtraBold,
-                                                letterSpacing = 1.sp
-                                            )
-                                        )
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
-                                            text = "Processed: $processedCount transactions",
-                                            style = MaterialTheme.typography.titleMedium.copy(
-                                                color = Color.White,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        )
-                                        
-                                        Spacer(modifier = Modifier.height(14.dp))
-
-                                        // Synced status indicator row
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier.padding(vertical = 2.dp)
-                                        ) {
-                                            Box(modifier = Modifier.size(10.dp).background(Color(0xFF10B981), RoundedCornerShape(5.dp)))
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Text(
-                                                text = "Synced: $syncedCount txn",
-                                                style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF94A3B8))
-                                            )
-                                        }
-
-                                        // Offline Queue status indicator row
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier.padding(vertical = 2.dp)
-                                        ) {
-                                            Box(modifier = Modifier.size(10.dp).background(Color(0xFFFB923C), RoundedCornerShape(5.dp)))
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Text(
-                                                text = "Offline Queue: $pendingCount delayed",
-                                                style = MaterialTheme.typography.bodySmall.copy(
-                                                    color = if (pendingCount > 0) Color(0xFFFB923C) else Color(0xFF94A3B8)
-                                                )
-                                            )
-                                        }
-
-                                        Spacer(modifier = Modifier.height(10.dp))
-
-                                        // Pill indicator showing sync percentage badge
-                                        Box(
-                                            modifier = Modifier
-                                                .background(Color(0xFF0F172A), RoundedCornerShape(6.dp))
-                                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                                        ) {
-                                            val pct = if (processedCount > 0) (syncedCount.toFloat() / processedCount * 100).toInt() else 100
-                                            Text(
-                                                text = "$pct% DATABASE SYNCED",
-                                                style = MaterialTheme.typography.labelSmall.copy(
-                                                    color = if (pct == 100) Color(0xFF10B981) else Color(0xFFFFB703),
-                                                    fontWeight = FontWeight.Black
-                                                )
-                                            )
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.width(16.dp))
-
-                                    // Display the newly integrated native Pie Chart representing Pending vs Synced ratio
-                                    SmsSyncPieChart(
-                                        syncedCount = syncedCount,
-                                        pendingCount = pendingCount,
-                                        modifier = Modifier.weight(0.7f)
-                                    )
-                                }
-                            }
-                        }
-
-                        if (transactions.isEmpty()) {
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 40.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Icon(imageVector = Icons.Default.SmsFailed, contentDescription = "No SMS yet", tint = Color(0xFF475569), modifier = Modifier.size(48.dp))
-                                        Spacer(modifier = Modifier.height(12.dp))
-                                        Text("No Mobile Banking SMS captured yet.", style = MaterialTheme.typography.titleSmall.copy(color = Color(0xFF64748B), fontWeight = FontWeight.Bold))
-                                        Text("Toggle listener to ACTIVE and trigger the SMS Emulator tab to test parsing instantly!", style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF475569)), modifier = Modifier.padding(top = 4.dp, start = 16.dp, end = 16.dp), textAlign = TextAlign.Center)
-                                    }
-                                }
-                            }
-                        } else {
-                            items(transactions, key = { it.id }) { txn ->
-                                TransactionItemRow(txn = txn, projects = projects, paymentAccounts = paymentAccounts)
-                            }
+                            OverviewTab(
+                                viewModel = viewModel,
+                                onNavigateToPayouts = { activeTab = 2 }
+                            )
                         }
                     }
 
-                    1 -> { // TAB 1: NEW SYSTEMS MAPPINGS (Projects & Accounts manager!)
+                    1 -> {
                         item {
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                // A. Projects Card
-                                Card(
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
-                                    shape = RoundedCornerShape(16.dp),
-                                    modifier = Modifier.fillMaxWidth().testTag("projects_management_card")
-                                ) {
-                                    Column(modifier = Modifier.padding(16.dp)) {
-                                        Text(
-                                            text = "REGISTERED WEBSITE PROJECTS",
-                                            style = MaterialTheme.typography.titleSmall.copy(
-                                                fontWeight = FontWeight.ExtraBold, color = Color(0xFF22D3EE)
-                                            )
-                                        )
-                                        Text(
-                                            text = "Configure multiple tenant web stores/websites to automatically segregate payouts based on backend query keys.",
-                                            style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF94A3B8)),
-                                            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
-                                        )
-
-                                        if (projects.isEmpty()) {
-                                            Text(
-                                                text = "No projects found. Using 'default_project' fallback.",
-                                                style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFFF97316)),
-                                                modifier = Modifier.padding(vertical = 4.dp)
-                                            )
-                                        } else {
-                                            projects.forEach { pr ->
-                                                Row(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(vertical = 4.dp)
-                                                        .background(Color(0xFF0F172A), RoundedCornerShape(8.dp))
-                                                        .padding(10.dp),
-                                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Column(modifier = Modifier.weight(1f)) {
-                                                        Text(text = pr.name, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, color = Color.White))
-                                                        Text(text = "ID: ${pr.id}", style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF64748B)))
-                                                        Text(text = pr.websiteUrl, style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF22D3EE)), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                                    }
-                                                    IconButton(onClick = { viewModel.deleteProject(pr) }) {
-                                                        Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete project", tint = Color(0xFFEF4444))
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        var showAddProj by remember { mutableStateOf(false) }
-                                        if (showAddProj) {
-                                            var prId by remember { mutableStateOf("") }
-                                            var prName by remember { mutableStateOf("") }
-                                            var prUrl by remember { mutableStateOf("") }
-
-                                            Column(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(top = 10.dp)
-                                                    .background(Color(0xFF0F172A), RoundedCornerShape(12.dp))
-                                                    .padding(12.dp)
-                                            ) {
-                                                Text("Register Website Project", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, color = Color.White))
-                                                OutlinedTextField(
-                                                    value = prId,
-                                                    onValueChange = { prId = it },
-                                                    label = { Text("Unique Project Key (e.g. shop_a)", color = Color(0xFF94A3B8)) },
-                                                    singleLine = true,
-                                                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
-                                                )
-                                                OutlinedTextField(
-                                                    value = prName,
-                                                    onValueChange = { prName = it },
-                                                    label = { Text("Website / Business Name", color = Color(0xFF94A3B8)) },
-                                                    singleLine = true,
-                                                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
-                                                )
-                                                OutlinedTextField(
-                                                    value = prUrl,
-                                                    onValueChange = { prUrl = it },
-                                                    label = { Text("Webhook Domain Website URL", color = Color(0xFF94A3B8)) },
-                                                    singleLine = true,
-                                                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
-                                                )
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                                                    horizontalArrangement = Arrangement.End
-                                                ) {
-                                                    TextButton(onClick = { showAddProj = false }) { Text("Cancel") }
-                                                    Button(
-                                                        onClick = {
-                                                            if (prId.isNotEmpty() && prName.isNotEmpty()) {
-                                                                viewModel.addProject(prId, prName, prUrl)
-                                                                showAddProj = false
-                                                            }
-                                                        },
-                                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF22D3EE), contentColor = Color(0xFF020617))
-                                                    ) {
-                                                        Text("Add Project")
-                                                    }
-                                                }
-                                            }
-                                        } else {
-                                            Button(
-                                                onClick = { showAddProj = true },
-                                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF334155)),
-                                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-                                            ) {
-                                                Icon(imageVector = Icons.Default.Add, contentDescription = "Add project")
-                                                Spacer(modifier = Modifier.width(6.dp))
-                                                Text("Add Website Project node", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold))
-                                            }
-                                        }
-                                    }
-                                }
-
-                                // B. Accounts Card
-                                Card(
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
-                                    shape = RoundedCornerShape(16.dp),
-                                    modifier = Modifier.fillMaxWidth().testTag("accounts_mapping_card")
-                                ) {
-                                    Column(modifier = Modifier.padding(16.dp)) {
-                                        Text(
-                                            text = "PAYMENT ACCOUNTS MAPPING",
-                                            style = MaterialTheme.typography.titleSmall.copy(
-                                                fontWeight = FontWeight.ExtraBold, color = Color(0xFFFFB703)
-                                            )
-                                        )
-                                        Text(
-                                            text = "Declare which phone wallet numbers are receiving SMS, which physical SIM slots they run on, and route them to your separate website projects.",
-                                            style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF94A3B8)),
-                                            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
-                                        )
-
-                                        if (paymentAccounts.isEmpty()) {
-                                            Text(
-                                                text = "No accounts registered. Using default fallbacks.",
-                                                style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFFF97316)),
-                                                modifier = Modifier.padding(vertical = 4.dp)
-                                            )
-                                        } else {
-                                            paymentAccounts.forEach { acc ->
-                                                val linkedPrName = projects.find { it.id == acc.projectId }?.name ?: "Unknown Project ID [${acc.projectId}]"
-                                                Row(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(vertical = 4.dp)
-                                                        .background(Color(0xFF0F172A), RoundedCornerShape(8.dp))
-                                                        .padding(10.dp),
-                                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Column(modifier = Modifier.weight(1f)) {
-                                                        Text(text = acc.name, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, color = Color.White))
-                                                        Text(text = "${acc.provider} (Wallet: ${acc.walletNumber})", style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF22D3EE)))
-                                                        Text(text = "SIM Slot: ${if (acc.simSlot == -1) "Any Slot" else "Slot ${acc.simSlot + 1}"}", style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF94A3B8)))
-                                                        Row(
-                                                            modifier = Modifier.padding(top = 4.dp),
-                                                            verticalAlignment = Alignment.CenterVertically
-                                                        ) {
-                                                            Icon(imageVector = Icons.Default.Launch, contentDescription = "Route to", tint = Color(0xFFFFB703), modifier = Modifier.size(12.dp))
-                                                            Spacer(modifier = Modifier.width(4.dp))
-                                                            Text(text = "Reroutes -> $linkedPrName", style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFFFFB703), fontWeight = FontWeight.Bold))
-                                                        }
-                                                    }
-                                                    IconButton(onClick = { viewModel.deletePaymentAccount(acc) }) {
-                                                        Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete account", tint = Color(0xFFEF4444))
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        var showAddAcc by remember { mutableStateOf(false) }
-                                        if (showAddAcc) {
-                                            var accId by remember { mutableStateOf("") }
-                                            var accName by remember { mutableStateOf("") }
-                                            var accProvider by remember { mutableStateOf("bKash") }
-                                            var accWallet by remember { mutableStateOf("") }
-                                            var accSlot by remember { mutableStateOf(0) }
-                                            var activeProjId by remember { mutableStateOf(projects.firstOrNull()?.id ?: "default_project") }
-
-                                            Column(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(top = 10.dp)
-                                                    .background(Color(0xFF0F172A), RoundedCornerShape(12.dp))
-                                                    .padding(12.dp)
-                                            ) {
-                                                Text("Map Payment Account", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, color = Color.White))
-                                                OutlinedTextField(
-                                                    value = accId,
-                                                    onValueChange = { accId = it },
-                                                    label = { Text("Unique Account key (e.g. bk_a)", color = Color(0xFF94A3B8)) },
-                                                    singleLine = true,
-                                                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
-                                                )
-                                                OutlinedTextField(
-                                                    value = accName,
-                                                    onValueChange = { accName = it },
-                                                    label = { Text("Display Name (e.g. bKash Account A)", color = Color(0xFF94A3B8)) },
-                                                    singleLine = true,
-                                                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
-                                                )
-
-                                                Text("FinTech Service Provider:", style = MaterialTheme.typography.labelSmall.copy(color = Color(0xFF64748B), fontWeight = FontWeight.Bold), modifier = Modifier.padding(top = 6.dp))
-                                                Row(
-                                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
-                                                ) {
-                                                    listOf("bKash", "Nagad", "Rocket", "Upay").forEach { p ->
-                                                        FilterChip(
-                                                            selected = accProvider == p,
-                                                            onClick = { accProvider = p },
-                                                            label = { Text(p, style = TextStyle(fontSize = 11.sp)) }
-                                                        )
-                                                    }
-                                                }
-
-                                                OutlinedTextField(
-                                                    value = accWallet,
-                                                    onValueChange = { accWallet = it },
-                                                    label = { Text("Merchant SIM Wallet Number", color = Color(0xFF94A3B8)) },
-                                                    singleLine = true,
-                                                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
-                                                )
-
-                                                Text("Assigned SIM Line Slot Index:", style = MaterialTheme.typography.labelSmall.copy(color = Color(0xFF64748B), fontWeight = FontWeight.Bold), modifier = Modifier.padding(top = 6.dp))
-                                                Row(
-                                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
-                                                ) {
-                                                    listOf(-1 to "Any SIM", 0 to "SIM 1 (Slot 0)", 1 to "SIM 2 (Slot 1)").forEach { (valIx, caption) ->
-                                                        FilterChip(
-                                                            selected = accSlot == valIx,
-                                                            onClick = { accSlot = valIx },
-                                                            label = { Text(caption, style = TextStyle(fontSize = 11.sp)) }
-                                                        )
-                                                    }
-                                                }
-
-                                                Text("Route Payments dynamically to Project Website:", style = MaterialTheme.typography.labelSmall.copy(color = Color(0xFF64748B), fontWeight = FontWeight.Bold), modifier = Modifier.padding(top = 8.dp))
-                                                if (projects.isEmpty()) {
-                                                    Text("Create a project website first to link.", style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFFEF4444)), modifier = Modifier.padding(top = 2.dp))
-                                                } else {
-                                                    Row(
-                                                        modifier = Modifier
-                                                            .fillMaxWidth()
-                                                            .padding(top = 4.dp)
-                                                            .background(Color(0xFF1E293B), RoundedCornerShape(6.dp))
-                                                            .padding(6.dp),
-                                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                                    ) {
-                                                        projects.forEach { prj ->
-                                                            InputChip(
-                                                                selected = activeProjId == prj.id,
-                                                                onClick = { activeProjId = prj.id },
-                                                                label = { Text(prj.name, style = TextStyle(fontSize = 10.sp)) }
-                                                            )
-                                                        }
-                                                    }
-                                                }
-
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-                                                    horizontalArrangement = Arrangement.End
-                                                ) {
-                                                    TextButton(onClick = { showAddAcc = false }) { Text("Cancel") }
-                                                    Button(
-                                                        onClick = {
-                                                            if (accId.isNotEmpty() && accName.isNotEmpty() && accWallet.isNotEmpty()) {
-                                                                viewModel.addPaymentAccount(accId, accName, accProvider, accWallet, accSlot, activeProjId)
-                                                                showAddAcc = false
-                                                            }
-                                                        },
-                                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFB703), contentColor = Color(0xFF020617))
-                                                    ) {
-                                                        Text("Map Account")
-                                                    }
-                                                }
-                                            }
-                                        } else {
-                                            Button(
-                                                onClick = { showAddAcc = true },
-                                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF334155)),
-                                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-                                            ) {
-                                                Icon(imageVector = Icons.Default.AddCard, contentDescription = "Map Account")
-                                                Spacer(modifier = Modifier.width(6.dp))
-                                                Text("Map New Payment Account", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold))
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            PaymentsTab(
+                                viewModel = viewModel
+                            )
                         }
                     }
 
-                    2 -> { // TAB 2: RUNTIME NETWORKS LOGS
-                        if (syncLogs.isEmpty()) {
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 40.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Icon(imageVector = Icons.Default.HistoryToggleOff, contentDescription = "No logs yet", tint = Color(0xFF475569), modifier = Modifier.size(48.dp))
-                                        Spacer(modifier = Modifier.height(12.dp))
-                                        Text("Telemetry stream is empty.", style = MaterialTheme.typography.titleSmall.copy(color = Color(0xFF64748B), fontWeight = FontWeight.Bold))
-                                    }
-                                }
-                            }
-                        } else {
-                            items(syncLogs, key = { it.id }) { log ->
-                                SyncLogItemRow(log = log)
-                            }
+                    2 -> {
+                        item {
+                            PortalTab(
+                                viewModel = viewModel
+                            )
                         }
                     }
 
-                    3 -> { // TAB 3: DEVELOPER SMS EMULATOR CONSOLE (INTEGRATED PAYMENTS MAPPING VERIFICATION!)
+                    3 -> {
                         item {
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
-                                border = BorderStroke(1.dp, Color(0xFFFFB703).copy(alpha = 0.5f)),
-                                shape = RoundedCornerShape(16.dp),
-                                modifier = Modifier.fillMaxWidth().testTag("emulator_card")
-                            ) {
-                                Column(modifier = Modifier.padding(20.dp)) {
-                                    var selectedAccIdx by remember { mutableStateOf(0) }
-
-                                    Text(
-                                        text = "DEVELOPER SANDBOX CONSOLE",
-                                        style = MaterialTheme.typography.titleMedium.copy(
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = Color(0xFFFFB703),
-                                            letterSpacing = 0.5.sp
-                                        )
-                                    )
-                                    Text(
-                                        text = "Inject simulated bKash, Nagad, Rocket, or Upay SMS packets to evaluate precise client-side extraction, mapped project routing, and direct verification.",
-                                        style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF94A3B8)),
-                                        modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
-                                    )
-
-                                    Divider(color = Color(0xFF334155), modifier = Modifier.padding(bottom = 12.dp))
-
-                                    // SELECT ACCOUNTS INSTEAD OF RANDOM PRESETS FOR INTEGRATED MAPPED DEMO!
-                                    if (paymentAccounts.isNotEmpty()) {
-                                        Text("CHOOSE DEVICE MAPPED ACCOUNT TO SIMULATE TRANSACTION AT:", style = MaterialTheme.typography.labelSmall.copy(color = Color(0xFFFFB703), fontWeight = FontWeight.Black))
-                                        
-                                        if (selectedAccIdx >= paymentAccounts.size) selectedAccIdx = 0
-                                        val mappedAccount = paymentAccounts.getOrNull(selectedAccIdx)
-
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(top = 6.dp, bottom = 12.dp)
-                                                .background(Color(0xFF0F172A), RoundedCornerShape(8.dp))
-                                                .padding(6.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                        ) {
-                                            paymentAccounts.forEachIndexed { idx, acc ->
-                                                val isSelected = selectedAccIdx == idx
-                                                InputChip(
-                                                    selected = isSelected,
-                                                    onClick = {
-                                                        selectedAccIdx = idx
-                                                        simulatorTargetService = acc.provider
-                                                        
-                                                        // Automatically load realistic SMS template for that provider containing the wallet number
-                                                        if (acc.provider.equals("bKash", ignoreCase = true)) {
-                                                            customSmsSender = "bKash"
-                                                            customSmsBody = "You have received Tk 5,000.00 from 01822334455 at bKash Wallet ${acc.walletNumber}. Fee Tk 0.00. Balance Tk 45,200.00. TrxID 8N" + (1000..9999).random() + "JG9DL at 02/06/2026 14:35. Ref: test_tx_49"
-                                                        } else if (acc.provider.equals("Nagad", ignoreCase = true)) {
-                                                            customSmsSender = "NAGAD"
-                                                            customSmsBody = "Payment received of Tk 1,200.00 from 01928473625 at Nagad Wallet ${acc.walletNumber}. Balance Tk 12,000.00. TxnID 7" + (1000..9999).random() + "JGD82 at 02/06/2026 12:40. Ref: order_1028"
-                                                        } else {
-                                                            customSmsSender = acc.provider
-                                                            customSmsBody = "You have received Tk. 2,000.00 from 01374829374. Bal: Tk. 4,500.00. TxId: 9283749" + (1000..9999).random() + "A. Date: 02/06/2026 10:30"
-                                                        }
-                                                    },
-                                                    label = { Text(acc.name, style = TextStyle(fontSize = 11.sp)) }
-                                                )
-                                            }
-                                        }
-                                    } else {
-                                        Text("PRESET SMS TEMPLATES CARDS:", style = MaterialTheme.typography.labelSmall.copy(color = Color(0xFF64748B), fontWeight = FontWeight.Black))
-                                        
-                                        FlowRow(
-                                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 12.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                                        ) {
-                                            InputChip(
-                                                selected = simulatorTargetService == "bKash",
-                                                onClick = {
-                                                    simulatorTargetService = "bKash"
-                                                    customSmsSender = "bKash"
-                                                    customSmsBody = "You have received Tk 5,000.00 from 01844992211. Fee Tk 0.00. Balance Tk 45,200.00. TrxID 8N34JG98DL at 02/06/2026 14:35. Ref: userRef49"
-                                                },
-                                                label = { Text("bKash Rec Tk 5,000") }
-                                            )
-                                            InputChip(
-                                                selected = simulatorTargetService == "Nagad",
-                                                onClick = {
-                                                    simulatorTargetService = "Nagad"
-                                                    customSmsSender = "NAGAD"
-                                                    customSmsBody = "Payment received of Tk 1,200.00 from 01928473625. Balance Tk 12,000.00. TxnID 712JGD82 at 02/06/2026 12:40. Ref: order_1028"
-                                                },
-                                                label = { Text("Nagad Pay BDT 1,200") }
-                                            )
-                                        }
-                                    }
-
-                                    // Intercept SMS Field Inputs
-                                    Divider(color = Color(0xFF334155), modifier = Modifier.padding(bottom = 12.dp))
-
-                                    Text("CUSTOM SIMULATOR FIELDS (EDITABLE):", style = MaterialTheme.typography.labelSmall.copy(color = Color(0xFF64748B), fontWeight = FontWeight.Bold))
-
-                                    OutlinedTextField(
-                                        value = customSmsSender,
-                                        onValueChange = { customSmsSender = it },
-                                        label = { Text("SMS Sender Number / Label", color = Color(0xFF94A3B8)) },
-                                        shape = RoundedCornerShape(8.dp),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            focusedBorderColor = Color(0xFFFFB703),
-                                            unfocusedBorderColor = Color(0xFF334155),
-                                            focusedTextColor = Color.White,
-                                            unfocusedTextColor = Color.White
-                                        ),
-                                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 12.dp),
-                                        singleLine = true
-                                    )
-
-                                    OutlinedTextField(
-                                        value = customSmsBody,
-                                        onValueChange = { customSmsBody = it },
-                                        label = { Text("Raw Intercepted SMS Body Block", color = Color(0xFF94A3B8)) },
-                                        shape = RoundedCornerShape(8.dp),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            focusedBorderColor = Color(0xFFFFB703),
-                                            unfocusedBorderColor = Color(0xFF334155),
-                                            focusedTextColor = Color.White,
-                                            unfocusedTextColor = Color.White
-                                        ),
-                                        modifier = Modifier.fillMaxWidth().height(100.dp).padding(bottom = 16.dp),
-                                        maxLines = 4
-                                    )
-
-                                    Button(
-                                        onClick = {
-                                            // Get currently selected mapped account & project IDs
-                                            val currentAccount = paymentAccounts.getOrNull(selectedAccIdx)
-                                            val feedProjectId = currentAccount?.projectId ?: "default_project"
-                                            val feedAccountId = currentAccount?.id ?: "default_account"
-
-                                            viewModel.simulateSmsReceived(
-                                                sender = customSmsSender,
-                                                messageBody = customSmsBody,
-                                                projectId = feedProjectId,
-                                                paymentAccountId = feedAccountId
-                                            )
-                                        },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = Color(0xFFFFB703),
-                                            contentColor = Color(0xFF020617)
-                                        ),
-                                        shape = RoundedCornerShape(10.dp),
-                                        modifier = Modifier.fillMaxWidth().height(46.dp).testTag("simulate_feed_button")
-                                    ) {
-                                        Icon(imageVector = Icons.Default.SendTimeExtension, contentDescription = "Send mock SMS")
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text("FEED EMULATED SMS TO GATEWAY", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Black))
-                                    }
-
-                                    Spacer(modifier = Modifier.height(12.dp))
-
-                                    Button(
-                                        onClick = {
-                                            viewModel.parseSmsWithGemini(customSmsBody)
-                                        },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = Color(0xFF06B6D4), // Cyan 500
-                                            contentColor = Color.White
-                                        ),
-                                        shape = RoundedCornerShape(10.dp),
-                                        enabled = !geminiParseLoading,
-                                        modifier = Modifier.fillMaxWidth().height(46.dp).testTag("gemini_extract_button")
-                                    ) {
-                                        if (geminiParseLoading) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(18.dp),
-                                                color = Color.White,
-                                                strokeWidth = 2.dp
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text("ANALYZING WITH GEMINI...", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Black))
-                                        } else {
-                                            Icon(imageVector = Icons.Default.Analytics, contentDescription = "AI extractor")
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text("EXTRACT & PARSE WITH GEMINI API", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Black))
-                                        }
-                                    }
-
-                                    geminiParseResult?.let { res ->
-                                        Spacer(modifier = Modifier.height(12.dp))
-                                        Column(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .background(Color(0xFF0F172A), RoundedCornerShape(10.dp))
-                                                .border(1.dp, Color(0xFF06B6D4).copy(alpha = 0.4f), RoundedCornerShape(10.dp))
-                                                .padding(14.dp)
-                                        ) {
-                                            Text(
-                                                text = "STRUCTURED TRANSACTION JSON (GEMINI):",
-                                                style = MaterialTheme.typography.labelSmall.copy(
-                                                    color = Color(0xFF06B6D4),
-                                                    fontWeight = FontWeight.Black
-                                                )
-                                            )
-                                            Spacer(modifier = Modifier.height(8.dp))
-                                            Text(
-                                                text = """
-                                                {
-                                                  "amount": ${res.amount ?: "null"},
-                                                  "sender": ${if (res.sender != null) "\"${res.sender}\"" else "null"},
-                                                  "date": ${if (res.date != null) "\"${res.date}\"" else "null"},
-                                                  "currency": ${if (res.currency != null) "\"${res.currency}\"" else "null"}
-                                                }
-                                                """.trimIndent(),
-                                                style = MaterialTheme.typography.bodySmall.copy(
-                                                    fontFamily = FontFamily.Monospace,
-                                                    color = Color(0xFFE2E8F0)
-                                                )
-                                            )
-                                        }
-                                    }
-                                }
-                            }
+                            DevicesTab(
+                                viewModel = viewModel
+                            )
                         }
                     }
 
-                    4 -> { // TAB 4: SETTINGS & LOCAL RECORD VIEWER
+                    4 -> {
                         item {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 12.dp),
-                                verticalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                // A. Background Synchronization Settings
-                                Card(
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
-                                    shape = RoundedCornerShape(16.dp),
-                                    border = BorderStroke(1.dp, Color(0xFF334155)),
-                                    modifier = Modifier.fillMaxWidth().testTag("sync_settings_card")
-                                ) {
-                                    Column(modifier = Modifier.padding(16.dp)) {
-                                        Text(
-                                            text = "BACKGROUND SYNCHRONIZATION",
-                                            style = MaterialTheme.typography.titleSmall.copy(
-                                                fontWeight = FontWeight.ExtraBold, color = Color(0xFF22D3EE)
-                                            )
-                                        )
-                                        Text(
-                                            text = "Establish the periodic frequency of the WorkManager queue processor. Frequent triggers guarantee fast verification.",
-                                            style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF94A3B8)),
-                                            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
-                                        )
+                            SupportTab(
+                                viewModel = viewModel
+                            )
+                        }
+                    }
 
-                                        Text(
-                                            text = "SELECT INTERVAL FREQUENCY:",
-                                            style = MaterialTheme.typography.labelSmall.copy(color = Color(0xFFFFB703), fontWeight = FontWeight.Bold)
-                                        )
-
-                                        val intervals = listOf(15 to "15 Mins", 30 to "30 Mins", 60 to "1 Hour", 120 to "2 Hours")
-                                        Row(
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-                                        ) {
-                                            intervals.forEach { (mins, label) ->
-                                                val isSelected = syncFrequency == mins
-                                                Box(
-                                                    modifier = Modifier
-                                                        .weight(1f)
-                                                        .height(40.dp)
-                                                        .background(
-                                                            if (isSelected) Color(0xFF22D3EE) else Color(0xFF0F172A),
-                                                            RoundedCornerShape(8.dp)
-                                                        )
-                                                        .border(
-                                                            width = 1.dp,
-                                                            color = if (isSelected) Color(0xFF22D3EE) else Color(0xFF334155),
-                                                            shape = RoundedCornerShape(8.dp)
-                                                        )
-                                                        .clickable { viewModel.updateSyncFrequency(mins) },
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Text(
-                                                        text = label,
-                                                        style = MaterialTheme.typography.labelSmall.copy(
-                                                            color = if (isSelected) Color(0xFF020617) else Color(0xFF94A3B8),
-                                                            fontWeight = FontWeight.Bold
-                                                        )
-                                                    )
-                                                }
-                                            }
-                                        }
-
-                                        Spacer(modifier = Modifier.height(18.dp))
-                                        HorizontalDivider(color = Color(0xFF334155))
-                                        Spacer(modifier = Modifier.height(12.dp))
-
-                                        // Manual Trigger block
-                                        Text(
-                                            text = "MANUAL QUEUE FLUSH",
-                                            style = MaterialTheme.typography.labelSmall.copy(color = Color(0xFF94A3B8), fontWeight = FontWeight.Bold)
-                                        )
-                                        Text(
-                                            text = "Instantly trigger a one-time WorkManager job to clear and upload all pending/failed records.",
-                                            style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF64748B)),
-                                            modifier = Modifier.padding(bottom = 10.dp)
-                                        )
-
-                                        Button(
-                                            onClick = {
-                                                val constraints = Constraints.Builder()
-                                                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                                                    .build()
-                                                val syncRequest = OneTimeWorkRequestBuilder<SyncWorkManager>()
-                                                    .setConstraints(constraints)
-                                                    .build()
-                                                WorkManager.getInstance(context).enqueueUniqueWork(
-                                                    "SmsGatewayOneTimeSync",
-                                                    ExistingWorkPolicy.REPLACE,
-                                                    syncRequest
-                                                )
-                                                viewModel.triggerSyncManual()
-                                            },
-                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
-                                            modifier = Modifier.fillMaxWidth(),
-                                            shape = RoundedCornerShape(8.dp)
-                                        ) {
-                                            Icon(imageVector = Icons.Default.Sync, contentDescription = "Force manual sync", modifier = Modifier.size(16.dp))
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text("Force Sync & Flush Queue Now", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold))
-                                        }
-                                    }
-                                }
-
-                                // B. Local Gateway Database Telemetry Status
-                                Card(
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
-                                    border = BorderStroke(1.dp, Color(0xFF334155)),
-                                    shape = RoundedCornerShape(16.dp),
-                                    modifier = Modifier.fillMaxWidth().testTag("local_telemetry_status_card")
-                                ) {
-                                    Column(modifier = Modifier.padding(16.dp)) {
-                                        Text(
-                                            text = "SECURE LOCAL SMS RECORDS MONITOR",
-                                            style = MaterialTheme.typography.titleSmall.copy(
-                                                fontWeight = FontWeight.ExtraBold, color = Color(0xFFFFB703)
-                                            )
-                                        )
-                                        Text(
-                                            text = "Locally saved SMS records captured directly by the Android broadcast listeners, displaying exact timestamps and synchronization states.",
-                                            style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF94A3B8)),
-                                            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
-                                        )
-
-                                        Button(
-                                            onClick = { isShowingLogViewer = true },
-                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF22D3EE), contentColor = Color(0xFF020617)),
-                                            shape = RoundedCornerShape(8.dp),
-                                            modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp).testTag("launch_full_log_viewer_button")
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.ReceiptLong,
-                                                contentDescription = "Open Dedicated Console",
-                                                tint = Color(0xFF020617),
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text(
-                                                text = "LAUNCH FULL SECURE LOG VIEWER",
-                                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Black)
-                                            )
-                                        }
-
-                                        if (transactions.isEmpty()) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .background(Color(0xFF0F172A), RoundedCornerShape(10.dp))
-                                                    .padding(20.dp),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Text(
-                                                    text = "No saved SMS transaction logs found.",
-                                                    style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF64748B))
-                                                )
-                                            }
-                                        } else {
-                                            transactions.forEach { txn ->
-                                                Column(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(bottom = 8.dp)
-                                                        .background(Color(0xFF0F172A), RoundedCornerShape(10.dp))
-                                                        .padding(12.dp)
-                                                ) {
-                                                    Row(
-                                                        modifier = Modifier.fillMaxWidth(),
-                                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                                        verticalAlignment = Alignment.CenterVertically
-                                                    ) {
-                                                        Column {
-                                                            Text(
-                                                                text = "${txn.sender} (${txn.senderNumber})",
-                                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, color = Color.White)
-                                                            )
-                                                            Text(
-                                                                text = "TxnID: ${txn.txnId}",
-                                                                style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF22D3EE), fontFamily = FontFamily.Monospace)
-                                                            )
-                                                        }
-                                                        Text(
-                                                            text = String.format(Locale.getDefault(), "৳%,.2f", txn.amount),
-                                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Black, color = Color.White)
-                                                        )
-                                                    }
-
-                                                    Spacer(modifier = Modifier.height(6.dp))
-
-                                                    Row(
-                                                        modifier = Modifier.fillMaxWidth(),
-                                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                                        verticalAlignment = Alignment.CenterVertically
-                                                    ) {
-                                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                                            val statusColor = when (txn.syncStatus) {
-                                                                "SUCCESS" -> Color(0xFF10B981)
-                                                                "PENDING" -> Color(0xFFFFB703)
-                                                                else -> Color(0xFFEF4444)
-                                                            }
-                                                            Box(modifier = Modifier.size(8.dp).background(statusColor, RoundedCornerShape(4.dp)))
-                                                            Spacer(modifier = Modifier.width(6.dp))
-                                                            Text(
-                                                                text = "Status: ${txn.syncStatus}",
-                                                                style = MaterialTheme.typography.labelSmall.copy(color = statusColor, fontWeight = FontWeight.Bold)
-                                                            )
-                                                        }
-
-                                                        val formatter = remember { java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss", java.util.Locale.getDefault()) }
-                                                        val timeStr = remember(txn.timestamp) { formatter.format(java.util.Date(txn.timestamp)) }
-                                                        Text(
-                                                            text = timeStr,
-                                                            style = MaterialTheme.typography.labelSmall.copy(color = Color(0xFF64748B))
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                    5 -> {
+                        item {
+                            AdminTab(
+                                viewModel = viewModel
+                            )
                         }
                     }
                 }
