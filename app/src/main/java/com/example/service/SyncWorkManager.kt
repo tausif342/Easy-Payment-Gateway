@@ -174,8 +174,8 @@ class SyncWorkManager(
                     val senders = body.allowedSenders ?: ""
                     val inflow = body.inflowKeywords ?: ""
                     val marketing = body.marketingKeywords ?: ""
-                    val latestVersion = body.latestAppVersion ?: "1.0.0"
-                    val updateUrl = body.appUpdateUrl ?: ""
+                    val latestVersion = if (datastoreManager.getDisableUpdateCheck()) "" else (body.latestAppVersion ?: "1.0.0")
+                    val updateUrl = if (datastoreManager.getDisableUpdateCheck()) "" else (body.appUpdateUrl ?: "")
 
                     datastoreManager.saveRemoteConfig(senders, inflow, marketing, latestVersion, updateUrl)
 

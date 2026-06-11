@@ -43,6 +43,7 @@ class DatastoreManager(private val context: Context) {
         private val PERMISSION_TITLE = stringPreferencesKey("permission_title")
         private val PERMISSION_SUBTITLE = stringPreferencesKey("permission_subtitle")
         private val PERMISSION_DESCRIPTION = stringPreferencesKey("permission_description")
+        private val DISABLE_UPDATE_CHECK = booleanPreferencesKey("disable_update_check")
     }
 
     val apiKeyFlow: Flow<String> = context.dataStore.data.map { it[API_KEY] ?: "" }
@@ -71,6 +72,7 @@ class DatastoreManager(private val context: Context) {
     val permissionTitleFlow: Flow<String> = context.dataStore.data.map { it[PERMISSION_TITLE] ?: "পারমিশন প্রয়োজন!" }
     val permissionSubtitleFlow: Flow<String> = context.dataStore.data.map { it[PERMISSION_SUBTITLE] ?: "REQUIRED PERMISSIONS DISABLED" }
     val permissionDescriptionFlow: Flow<String> = context.dataStore.data.map { it[PERMISSION_DESCRIPTION] ?: "স্বয়ংক্রিয় bKash, Nagad ও Rocket পেমেন্ট ডিটেকশন সচল রাখতে SMS এবং Battery পারমিশন দুটি অবশ্যই অন থাকতে হবে। এগুলো বন্ধ থাকলে অ্যাপ কাজ করবে না।" }
+    val disableUpdateCheckFlow: Flow<Boolean> = context.dataStore.data.map { it[DISABLE_UPDATE_CHECK] ?: false }
 
     val deviceIdFlow: Flow<String> = context.dataStore.data.map { prefs ->
         val existing = prefs[DEVICE_ID]
@@ -222,6 +224,7 @@ class DatastoreManager(private val context: Context) {
     suspend fun getPermissionSubtitle(): String = permissionSubtitleFlow.first()
     suspend fun getPermissionDescription(): String = permissionDescriptionFlow.first()
     suspend fun getCustomAppIconPath(): String = customAppIconPathFlow.first()
+    suspend fun getDisableUpdateCheck(): Boolean = disableUpdateCheckFlow.first()
 
     suspend fun saveCustomAppName(name: String) {
         context.dataStore.edit { prefs ->
@@ -262,6 +265,12 @@ class DatastoreManager(private val context: Context) {
     suspend fun saveAdminPin(pin: String) {
         context.dataStore.edit { prefs ->
             prefs[ADMIN_PIN] = pin
+        }
+    }
+
+    suspend fun saveDisableUpdateCheck(disabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[DISABLE_UPDATE_CHECK] = disabled
         }
     }
 

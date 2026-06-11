@@ -571,6 +571,7 @@ fun DashboardScreen(
                     val localAppVersion = com.example.util.DeviceDiagnosticUtil.getAppVersion(context)
                     val remoteVersion by viewModel.latestAppVersion.collectAsState()
                     val remoteUpdateUrl by viewModel.appUpdateUrl.collectAsState()
+                    val disableUpdateCheck by viewModel.disableUpdateCheck.collectAsState()
                     val remoteAllowedSenders by viewModel.allowedSenders.collectAsState()
                     val remoteInflowKeywords by viewModel.inflowKeywords.collectAsState()
                     val remoteMarketingKeywords by viewModel.marketingKeywords.collectAsState()
@@ -615,7 +616,7 @@ fun DashboardScreen(
                             Divider(color = Color(0xFF334155), modifier = Modifier.padding(vertical = 12.dp))
 
                             // Software Update Alert Prompt Banner inside Card
-                            if (remoteVersion != localAppVersion && remoteUpdateUrl.isNotEmpty()) {
+                            if (!disableUpdateCheck && remoteVersion != localAppVersion && remoteUpdateUrl.isNotEmpty()) {
                                 Card(
                                     colors = CardDefaults.cardColors(containerColor = Color(0xFF7F1D1D)),
                                     border = BorderStroke(1.dp, Color(0xFFEF4444)),

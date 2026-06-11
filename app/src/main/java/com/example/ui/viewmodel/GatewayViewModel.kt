@@ -93,6 +93,7 @@ class GatewayViewModel(application: Application) : AndroidViewModel(application)
     val marketingKeywords: StateFlow<String> = datastore.marketingKeywordsFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
     val latestAppVersion: StateFlow<String> = datastore.latestAppVersionFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "1.0.0")
     val appUpdateUrl: StateFlow<String> = datastore.appUpdateUrlFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+    val disableUpdateCheck: StateFlow<Boolean> = datastore.disableUpdateCheckFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
     val adminPin: StateFlow<String> = datastore.adminPinFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "2580")
     val activeLauncherAlias: StateFlow<String> = datastore.activeLauncherAliasFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "com.example.AliasDefault")
     val customAppName: StateFlow<String> = datastore.customAppNameFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
@@ -288,13 +289,16 @@ class GatewayViewModel(application: Application) : AndroidViewModel(application)
                     // Sandbox bypass
                     datastore.setApproved(true)
                     
+                    val simVersion = if (datastore.getDisableUpdateCheck()) "" else "1.0.5"
+                    val simUrl = if (datastore.getDisableUpdateCheck()) "" else "https://easypaycenter.com/downloads/apk"
+
                     // Simulate receiving remote overrides of filters, keywords, and a new software release!
                     datastore.saveRemoteConfig(
                         senders = "BKASH,NAGAD,ROCKET,UPAY,MOCK_GATEWAY",
                         inflow = "received,receive,deposit,credited,transfer",
                         marketing = "offer,bonus,win,discount,campaign",
-                        version = "1.0.5", // Simulated newer version
-                        updateUrl = "https://easypaycenter.com/downloads/apk"
+                        version = simVersion,
+                        updateUrl = simUrl
                     )
 
                     _uiState.value = UiState.Success("Sandbox connection verified. Diagnostic configurations loaded.")
@@ -352,8 +356,8 @@ class GatewayViewModel(application: Application) : AndroidViewModel(application)
                     val senders = body.allowedSenders ?: ""
                     val inflow = body.inflowKeywords ?: ""
                     val marketing = body.marketingKeywords ?: ""
-                    val latestVersion = body.latestAppVersion ?: "1.0.0"
-                    val updateUrl = body.appUpdateUrl ?: ""
+                    val latestVersion = if (datastore.getDisableUpdateCheck()) "" else (body.latestAppVersion ?: "1.0.0")
+                    val updateUrl = if (datastore.getDisableUpdateCheck()) "" else (body.appUpdateUrl ?: "")
 
                     datastore.saveRemoteConfig(senders, inflow, marketing, latestVersion, updateUrl)
 
@@ -775,7 +779,8 @@ class GatewayViewModel(application: Application) : AndroidViewModel(application)
         inflowStr: String,
         marketingStr: String,
         versionStr: String,
-        updateUrlStr: String
+        updateUrlStr: String,
+        disableUpdate: Boolean
     ) {
         viewModelScope.launch {
             try {
@@ -794,6 +799,8 @@ class GatewayViewModel(application: Application) : AndroidViewModel(application)
                     id = deviceIdStr,
                     name = deviceNameStr
                 )
+
+                datastore.saveDisableUpdateCheck(disableUpdate)
                 
                 datastore.saveRemoteConfig(
                     senders = sendersStr,

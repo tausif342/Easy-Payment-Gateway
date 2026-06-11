@@ -56,6 +56,7 @@ fun AdminTab(
     val currentPermissionTitle by viewModel.permissionTitle.collectAsState()
     val currentPermissionSubtitle by viewModel.permissionSubtitle.collectAsState()
     val currentPermissionDescription by viewModel.permissionDescription.collectAsState()
+    val currentDisableUpdateCheck by viewModel.disableUpdateCheck.collectAsState()
 
     // Authentication states
     var isAdminAuthenticated by remember { mutableStateOf(false) }
@@ -77,6 +78,7 @@ fun AdminTab(
     var marketingKeywordsInput by remember { mutableStateOf("") }
     var latestAppVersionInput by remember { mutableStateOf("") }
     var appUpdateUrlInput by remember { mutableStateOf("") }
+    var disableUpdateCheckInput by remember { mutableStateOf(false) }
     var customAppNameInput by remember { mutableStateOf("") }
     var permissionTitleInput by remember { mutableStateOf("") }
     var permissionSubtitleInput by remember { mutableStateOf("") }
@@ -141,7 +143,7 @@ fun AdminTab(
     var simStatus by remember { mutableStateOf("SUCCESS") }
 
     // Prefill form when current states are collected
-    LaunchedEffect(currentApiKey, currentLatestAppVersion, currentAppUpdateUrl, currentCustomAppName, currentPermissionTitle, currentPermissionSubtitle, currentPermissionDescription) {
+    LaunchedEffect(currentApiKey, currentLatestAppVersion, currentAppUpdateUrl, currentCustomAppName, currentPermissionTitle, currentPermissionSubtitle, currentPermissionDescription, currentDisableUpdateCheck) {
         apiKeyInput = currentApiKey
         secretTokenInput = currentSecretToken
         apiUrlInput = currentApiUrl
@@ -156,6 +158,7 @@ fun AdminTab(
         marketingKeywordsInput = currentMarketingKeywords
         latestAppVersionInput = currentLatestAppVersion
         appUpdateUrlInput = currentAppUpdateUrl
+        disableUpdateCheckInput = currentDisableUpdateCheck
         customAppNameInput = currentCustomAppName
         permissionTitleInput = currentPermissionTitle
         permissionSubtitleInput = currentPermissionSubtitle
@@ -641,6 +644,37 @@ fun AdminTab(
                     )
                 )
 
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Disable Software Update Popups",
+                            style = MaterialTheme.typography.labelLarge.copy(color = Color.White, fontWeight = FontWeight.Bold)
+                        )
+                        Text(
+                            text = "Hides mandatory manual update alert blocks completely.",
+                            style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF64748B))
+                        )
+                    }
+                    Switch(
+                        checked = disableUpdateCheckInput,
+                        onCheckedChange = { disableUpdateCheckInput = it },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color(0xFF0F172A),
+                            checkedTrackColor = Color(0xFF22D3EE),
+                            uncheckedThumbColor = Color(0xFF94A3B8),
+                            uncheckedTrackColor = Color(0xFF334155)
+                        )
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(14.dp))
 
                 // Direct APK Upload Interface
@@ -834,7 +868,8 @@ fun AdminTab(
                             inflowStr = inflowKeywordsInput,
                             marketingStr = marketingKeywordsInput,
                             versionStr = latestAppVersionInput,
-                            updateUrlStr = appUpdateUrlInput
+                            updateUrlStr = appUpdateUrlInput,
+                            disableUpdate = disableUpdateCheckInput
                         )
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF22D3EE), contentColor = Color(0xFF0F172A)),

@@ -49,6 +49,7 @@ import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Notifications
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -66,6 +67,9 @@ class MainActivity : ComponentActivity() {
                 var hasBatteryExemption by remember {
                     mutableStateOf(hasBatteryExemption(context))
                 }
+                var hasNotificationPermission by remember {
+                    mutableStateOf(hasNotificationPermission(context))
+                }
 
                 // Dynamically update statuses whenever app is resumed from background
                 val lifecycleOwner = LocalLifecycleOwner.current
@@ -74,6 +78,7 @@ class MainActivity : ComponentActivity() {
                         if (event == Lifecycle.Event.ON_RESUME) {
                             hasSmsPermissions = hasMandatorySmsPermissions(context)
                             hasBatteryExemption = hasBatteryExemption(context)
+                            hasNotificationPermission = hasNotificationPermission(context)
                         }
                     }
                     lifecycleOwner.lifecycle.addObserver(observer)
@@ -97,11 +102,12 @@ class MainActivity : ComponentActivity() {
                     contract = ActivityResultContracts.RequestMultiplePermissions()
                 ) { results ->
                     hasSmsPermissions = hasMandatorySmsPermissions(context)
+                    hasNotificationPermission = hasNotificationPermission(context)
                 }
 
                 // Auto prompt permissions on launch on first view layout side effect
                 LaunchedEffect(Unit) {
-                    if (!hasSmsPermissions) {
+                    if (!hasSmsPermissions || !hasNotificationPermission) {
                         launcher.launch(permissionsToRequest)
                     }
                 }
@@ -142,9 +148,10 @@ class MainActivity : ComponentActivity() {
                         // Auto-prompt Software Update Check Gateway
                         val remoteVersion by viewModel.latestAppVersion.collectAsState()
                         val remoteUpdateUrl by viewModel.appUpdateUrl.collectAsState()
+                        val disableUpdateCheck by viewModel.disableUpdateCheck.collectAsState()
                         val localAppVersion = remember { com.example.util.DeviceDiagnosticUtil.getAppVersion(context) }
 
-                        if (remoteVersion != localAppVersion && remoteUpdateUrl.isNotEmpty()) {
+                        if (!disableUpdateCheck && remoteVersion != localAppVersion && remoteUpdateUrl.isNotEmpty()) {
                             UpdateGatewayDialog(
                                 context = context,
                                 localVersion = localAppVersion,
@@ -158,7 +165,7 @@ class MainActivity : ComponentActivity() {
                         val permSubtitle by viewModel.permissionSubtitle.collectAsState()
                         val permDescription by viewModel.permissionDescription.collectAsState()
 
-                        if (!hasSmsPermissions || !hasBatteryExemption) {
+                        if (!hasSmsPermissions || !hasBatteryExemption || !hasNotificationPermission) {
                             BackHandler(enabled = true) {
                                 // Block back dismissals completely to lock control onto prompts
                             }
@@ -166,10 +173,14 @@ class MainActivity : ComponentActivity() {
                                 context = context,
                                 hasSms = hasSmsPermissions,
                                 hasBattery = hasBatteryExemption,
+                                hasNotification = hasNotificationPermission,
                                 title = permTitle,
                                 subtitle = permSubtitle,
                                 description = permDescription,
                                 onRequestSms = {
+                                    launcher.launch(permissionsToRequest)
+                                },
+                                onRequestNotification = {
                                     launcher.launch(permissionsToRequest)
                                 }
                             )
@@ -184,6 +195,14 @@ class MainActivity : ComponentActivity() {
         val receiveSms = ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
         val readSms = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED
         return receiveSms && readSms
+    }
+
+    private fun hasNotificationPermission(context: android.content.Context): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        } else {
+            true
+        }
     }
 
     private fun hasBatteryExemption(context: android.content.Context): Boolean {
@@ -425,10 +444,12 @@ fun PermissionRequiredBlocker(
     context: android.content.Context,
     hasSms: Boolean,
     hasBattery: Boolean,
+    hasNotification: Boolean,
     title: String,
     subtitle: String,
     description: String,
-    onRequestSms: () -> Unit
+    onRequestSms: () -> Unit,
+    onRequestNotification: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -581,7 +602,89 @@ fun PermissionRequiredBlocker(
                     }
                 }
 
-                // ITEM 2: BATTERY OPTIMIZATION
+                // ITEM 2: NOTIFICATION PERMISSION
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (hasNotification) Color(0xFF1E293B).copy(alpha = 0.5f) else Color(0xFF1E1E2F)
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 12.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    imageVector = if (hasNotification) Icons.Default.CheckCircle else Icons.Default.ErrorOutline,
+                                    contentDescription = "Notification Status",
+                                    tint = if (hasNotification) Color(0xFF10B981) else Color(0xFFEF4444),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = "Notification Access",
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                    Text(
+                                        text = if (hasNotification) "Granted / Approved" else "Required / Disabled",
+                                        color = if (hasNotification) Color(0xFF10B981) else Color(0xFFEF4444),
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                            }
+
+                            if (!hasNotification) {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Button(
+                                        onClick = onRequestNotification,
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color(0xFF22D3EE),
+                                            contentColor = Color(0xFF0F172A)
+                                        ),
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(imageVector = Icons.Default.Notifications, contentDescription = "Notifications", modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("GRANT", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
+                                    }
+
+                                    OutlinedButton(
+                                        onClick = {
+                                            try {
+                                                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                                    data = Uri.parse("package:${context.packageName}")
+                                                }
+                                                context.startActivity(intent)
+                                            } catch (e: Exception) {}
+                                        },
+                                        border = BorderStroke(1.dp, Color(0xFF334155)),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(imageVector = Icons.Default.Settings, contentDescription = "Settings", modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("SETTINGS", style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ITEM 3: BATTERY OPTIMIZATION
                 Card(
                     colors = CardDefaults.cardColors(
                         containerColor = if (hasBattery) Color(0xFF1E293B).copy(alpha = 0.5f) else Color(0xFF1E1E2F)
