@@ -120,3 +120,25 @@ dependencies {
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
 }
+
+val buildDirFile = layout.buildDirectory.file("outputs/apk/debug/app-debug.apk").get().asFile.absolutePath
+val rootDirFile = project.rootDir.absolutePath
+
+tasks.register("copyApkToRoot") {
+    val srcPath = buildDirFile
+    val destPath = "$rootDirFile/app-debug.apk"
+    doLast {
+        val src = File(srcPath)
+        if (src.exists()) {
+            val dest = File(destPath)
+            src.copyTo(dest, overwrite = true)
+            println("Successfully copied APK to root: ${dest.absolutePath}")
+        }
+    }
+}
+
+afterEvaluate {
+    tasks.findByName("assembleDebug")?.finalizedBy("copyApkToRoot")
+}
+
+
